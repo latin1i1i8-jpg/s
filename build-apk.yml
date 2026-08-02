@@ -17,11 +17,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: 권한 설정 (gradlew)
-        run: chmod +x ./gradlew
+      - name: Gradle 설치 (Gradle Wrapper 없이)
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q gradle-8.9-bin.zip
+          export PATH=$PWD/gradle-8.9/bin:$PATH
+          gradle --version
 
       - name: 디버그 APK 빌드
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          export PATH=$PWD/gradle-8.9/bin:$PATH
+          gradle assembleDebug --no-daemon
 
       - name: APK 목록 확인
         run: ls -lah app/build/outputs/apk/debug/
