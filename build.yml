@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -20,18 +19,22 @@ jobs:
 
       - name: Download Gradle 8.9
         run: |
-          cd /tmp
-          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          mkdir -p /tmp/gradle-tools
+          cd /tmp/gradle-tools
+          wget https://services.gradle.org/distributions/gradle-8.9-bin.zip
           unzip -q gradle-8.9-bin.zip
-          echo "/tmp/gradle-8.9/bin" >> $GITHUB_PATH
+          echo "/tmp/gradle-tools/gradle-8.9/bin" >> $GITHUB_PATH
 
-      - name: Verify Gradle
+      - name: Check Gradle
         run: gradle --version
 
-      - name: Build APK
-        run: |
-          cd ${{ github.workspace }}
-          gradle assembleDebug --no-daemon -x lint
+      - name: Build with Gradle
+        run: gradle assembleDebug --no-daemon
+        working-directory: ${{ github.workspace }}
+
+      - name: List APK files
+        if: always()
+        run: find . -name "*.apk" -type f
 
       - name: Upload APK
         if: success()
@@ -39,4 +42,3 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
