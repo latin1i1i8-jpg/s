@@ -8,38 +8,54 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: JDK 17 설치
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
+          java-version: 17
           distribution: temurin
-          java-version: '17'
 
-      - name: Gradle 설치 (Gradle Wrapper 없이)
+      - name: Download and setup Gradle 8.9
         run: |
+          cd $HOME
           wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
           unzip -q gradle-8.9-bin.zip
-          export PATH=$PWD/gradle-8.9/bin:$PATH
-          gradle --version
+          rm gradle-8.9-bin.zip
+          echo "GRADLE_HOME=$HOME/gradle-8.9" >> $GITHUB_ENV
+          echo "$HOME/gradle-8.9/bin" >> $GITHUB_PATH
 
-      - name: 디버그 APK 빌드
+      - name: Verify Gradle installation
+        run: gradle --version
+
+      - name: Build APK with Gradle
+        run: gradle assembleDebug --no-daemon
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/.gradle
+
+      - name: Check for APK file
         run: |
-          export PATH=$PWD/gradle-8.9/bin:$PATH
-          gradle assembleDebug --no-daemon
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "✅ APK 빌드 성공!"
+            ls -lh app/build/outputs/apk/debug/app-debug.apk
+          else
+            echo "❌ APK를 찾을 수 없습니다"
+            find app/build -name "*.apk" 2>/dev/null || echo "APK 파일 없음"
+            exit 1
+          fi
 
-      - name: APK 목록 확인
-        run: ls -lah app/build/outputs/apk/debug/
-
-      - name: APK 업로드 (Artifacts)
+      - name: Upload APK to Artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: jarvis-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
+          retention-days: 30
 
-      - name: 빌드 실패 시 로그 업로드
+      - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -47,3 +63,4 @@ jobs:
           path: |
             app/build/reports/
             app/build/outputs/
+          retention-days: 7
